@@ -1,0 +1,7 @@
+2026-09-10 09:10:15 [INFO] catalog-service: Catálogo de produtos sincronizado
+2026-09-10 09:14:30 [WARNING] shipping-service: Prazo de entrega acima da média na região Sul
+2026-09-10 09:18:02 [ERROR] catalog-service: Falha ao atualizar imagem do produto SKU-5521
+2026-09-10 09:22:47 [INFO] shipping-service: Rota de entrega otimizada calculada
+2026-09-10 09:27:19 [CRITICAL] catalog-service: Unhandled exception no worker de indexação
+2026-09-10 09:30:05 [INFO] shipping-service: Etiqueta de envio gerada - pedido #77120
+2026-09-10 09:41:00 [INFO] shipping-service: Novo pedido registrado com API-1 fora do ar
