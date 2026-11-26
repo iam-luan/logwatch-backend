@@ -2,6 +2,8 @@
 
 import io
 import os
+import time
+import threading
 from flask import Flask, request, jsonify, Response, send_file
 from flask_cors import CORS
 from datetime import datetime
@@ -13,7 +15,19 @@ app = Flask(__name__)
 cors_origins = os.environ.get("CORS_ORIGINS", "*")
 CORS(app, resources={r"/api/*": {"origins": [o.strip() for o in cors_origins.split(",") if o.strip()] or ["*"]}})
 database.init_db()
+
 INSTANCE_ID = os.environ.get("INSTANCE_ID", "api-1")
+
+_DEMO_EVENTS = [
+    ("INFO", "notification-service", "Notifica??o enviada com sucesso"),
+    ("WARNING", "auth-service", "Aumento de tentativas de autentica??o"),
+    ("ERROR", "payment-service", "Timeout ao consultar gateway de pagamento"),
+    ("CRITICAL", "payment-service", "Database down - conex?o perdida"),
+]
+_demo_lock = threading.Lock()
+_demo_last_event = 0.0
+_demo_index = 0
+
 
 
 def _int_or(value, default=None):
@@ -40,6 +54,45 @@ def _normalize_structured(payload):
         "trace_id": payload.get("trace_id"),
         "raw_line": payload.get("raw_line"),
     }
+
+
+
+@app.post("/api/demo/tick")
+def demo_tick():
+    """Gera um ?nico evento sint?tico para apresenta??es autorizadas."""
+    global _demo_last_event, _demo_index
+
+    if os.environ.get("ENABLE_DEMO_MODE", "").lower() != "true":
+        return jsonify({"erro": "modo de demonstra??o desativado"}), 404
+
+    with _demo_lock:
+        now = time.monotonic()
+        if now - _demo_last_event < 5:
+            return jsonify({"status": "aguarde", "demo": True}), 429
+
+        nivel, componente, mensagem = _DEMO_EVENTS[
+            _demo_index % len(_DEMO_EVENTS)
+        ]
+        _demo_index += 1
+        _demo_last_event = now
+
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    raw_line = f"{timestamp} [{nivel}] {componente}: {mensagem}"
+
+    parsed = processor.parse_line(raw_line, origem="demo-apresentacao")
+    if parsed is None:
+        return jsonify({"erro": "n?o foi poss?vel processar o evento"}), 500
+
+    log_id, alerta_id = database.insert_log(**parsed, raw_line=raw_line)
+
+    return jsonify({
+        "status": "created",
+        "demo": True,
+        "log_id": log_id,
+        "nivel": parsed["nivel"],
+        "alerta_gerado": alerta_id is not None,
+        "origem": "demo-apresentacao",
+    }), 201
 
 
 @app.get("/api/health")
