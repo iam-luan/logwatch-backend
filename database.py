@@ -25,9 +25,6 @@ CREATE TABLE IF NOT EXISTS tb_logs (
     criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_logs_nivel_timestamp ON tb_logs (nivel, timestamp);
-CREATE INDEX IF NOT EXISTS idx_logs_componente ON tb_logs (componente);
-CREATE INDEX IF NOT EXISTS idx_logs_status ON tb_logs (status_code);
 
 CREATE TABLE IF NOT EXISTS tb_alertas (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -94,6 +91,17 @@ def init_db():
         for column, sql in migrations.items():
             if column not in existing:
                 conn.execute(sql)
+
+        # Create indexes after migrations to support legacy databases.
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_logs_nivel_timestamp ON tb_logs (nivel, timestamp)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_logs_componente ON tb_logs (componente)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_logs_status ON tb_logs (status_code)"
+        )
 
 
 def insert_log(timestamp, componente, nivel, mensagem, origem=None, metodo_http=None,

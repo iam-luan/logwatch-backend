@@ -6,7 +6,7 @@ import time
 import threading
 from flask import Flask, request, jsonify, Response, send_file
 from flask_cors import CORS
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import database
 import processor
@@ -74,9 +74,10 @@ def demo_tick():
             _demo_index % len(_DEMO_EVENTS)
         ]
         _demo_index += 1
+        demo_hour_offset = (_demo_index - 1) % 24
         _demo_last_event = now
 
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    timestamp = (datetime.now() - timedelta(hours=demo_hour_offset)).strftime("%Y-%m-%d %H:%M:%S")
     raw_line = f"{timestamp} [{nivel}] {componente}: {mensagem}"
 
     parsed = processor.parse_line(raw_line, origem="demo-apresentacao")
