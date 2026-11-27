@@ -217,60 +217,56 @@ def get_stats():
 
 def get_timeline(hours=24):
     hours = max(1, min(int(hours), 168))
+    agora = datetime.now()
+    limite_inferior = agora - timedelta(hours=hours)
+
+    ultimo_bucket = agora.replace(minute=0, second=0, microsecond=0)
+    primeiro_bucket = ultimo_bucket - timedelta(hours=hours - 1)
+
+    buckets = {
+        (primeiro_bucket + timedelta(hours=i)).strftime("%Y-%m-%d %H:%M:%S"): {
+            nivel: 0 for nivel in SEVERITY_LEVELS
+        }
+        for i in range(hours)
+    }
 
     with connection() as conn:
-        anchor_row = conn.execute(
-            "SELECT MAX(timestamp) AS max_ts FROM tb_logs"
-        ).fetchone()
+        total_logs = conn.execute(
+            "SELECT COUNT(*) FROM tb_logs"
+        ).fetchone()[0]
 
-        if not anchor_row or not anchor_row["max_ts"]:
+        if total_logs == 0:
             return []
-
-        anchor = anchor_row["max_ts"]
-
-        try:
-            anchor_dt = datetime.fromisoformat(str(anchor).replace("Z", ""))
-        except (ValueError, TypeError):
-            anchor_dt = datetime.now()
-
-        ultimo_bucket = anchor_dt.replace(minute=0, second=0, microsecond=0)
-        primeiro_bucket = ultimo_bucket - timedelta(hours=hours - 1)
-
-        buckets = {
-            (primeiro_bucket + timedelta(hours=i)).strftime("%Y-%m-%d %H:%M:%S"): {
-                nivel: 0 for nivel in SEVERITY_LEVELS
-            }
-            for i in range(hours)
-        }
 
         rows = conn.execute(
             """SELECT strftime('%Y-%m-%d %H:00:00', timestamp) AS bucket,
                       nivel,
                       COUNT(*) AS total
                FROM tb_logs
-               WHERE datetime(timestamp) BETWEEN datetime(?) AND datetime(?)
+               WHERE datetime(timestamp) >= datetime(?)
+                 AND datetime(timestamp) <= datetime(?)
                GROUP BY bucket, nivel
                ORDER BY bucket""",
             (
-                primeiro_bucket.strftime("%Y-%m-%d %H:%M:%S"),
-                anchor_dt.strftime("%Y-%m-%d %H:%M:%S"),
+                limite_inferior.strftime("%Y-%m-%d %H:%M:%S"),
+                agora.strftime("%Y-%m-%d %H:%M:%S"),
             ),
         ).fetchall()
 
-        for row in rows:
-            bucket = row["bucket"]
-            nivel = row["nivel"]
+    for row in rows:
+        bucket = row["bucket"]
+        nivel = row["nivel"]
 
-            if bucket in buckets and nivel in SEVERITY_LEVELS:
-                buckets[bucket][nivel] = row["total"]
+        if bucket in buckets and nivel in SEVERITY_LEVELS:
+            buckets[bucket][nivel] = row["total"]
 
-        return [
-            {
-                "hora": datetime.strptime(bucket, "%Y-%m-%d %H:%M:%S").strftime("%H:%M"),
-                **valores,
-            }
-            for bucket, valores in buckets.items()
-        ]
+    return [
+        {
+            "hora": datetime.strptime(bucket, "%Y-%m-%d %H:%M:%S").strftime("%H:%M"),
+            **valores,
+        }
+        for bucket, valores in buckets.items()
+    ]
 
 
 def get_alerts(only_unread=False, limit=50):
