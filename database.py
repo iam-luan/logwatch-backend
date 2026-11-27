@@ -298,7 +298,16 @@ def register_collector(nome, hostname, arquivos, status="online"):
 
 def get_collectors():
     with connection() as conn:
-        rows = conn.execute("SELECT * FROM tb_coletores ORDER BY ultima_atividade DESC").fetchall()
+        rows = conn.execute(
+            """SELECT id, nome, hostname, arquivos, ultima_atividade,
+                      CASE
+                          WHEN status = 'offline' THEN 'offline'
+                          WHEN datetime(ultima_atividade) < datetime('now', '-30 seconds') THEN 'offline'
+                          ELSE 'online'
+                      END AS status
+               FROM tb_coletores
+               ORDER BY ultima_atividade DESC"""
+        ).fetchall()
         return [dict(r) for r in rows]
 
 

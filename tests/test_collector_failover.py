@@ -9,7 +9,7 @@ import sys
 import os
 from unittest.mock import patch, MagicMock
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "coletor"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "coletor"))
 
 from collector import send_to_api
 
